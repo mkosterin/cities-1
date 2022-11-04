@@ -4,22 +4,29 @@ import (
 	"cities-1/pkg/city"
 	"cities-1/pkg/etc"
 	"encoding/csv"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"sync"
 )
 
-type Cities map[int]city.City
+type cities map[int]city.City
 
-func NewStore() *Cities {
+type CityStruct struct {
+	mu     sync.Mutex
+	cities cities
+}
+
+func NewStore() *CityStruct {
 	//Storage constructor
-	store := make(Cities)
+	var store CityStruct
+	store.cities = make(cities)
 	return &store
 }
 
-func (c *Cities) LoadFromCsv(filePath string) error {
+func (c *CityStruct) LoadFromCsv(filePath string) error {
 	//read dataset from CSV
+	c.mu.Lock()
 	f, err := os.Open(filePath)
 	if err != nil {
 		log.Fatal("Unable to read input file "+filePath, err)
@@ -52,25 +59,15 @@ func (c *Cities) LoadFromCsv(filePath string) error {
 			log.Fatal("Unable to parse Foundation "+records[i][5], errC)
 			return errC
 		}
-		(*c)[cityId] = bufferCity
+		(*c).cities[cityId] = bufferCity
 	}
+	c.mu.Unlock()
 	return nil
 }
 
-func (c *Cities) AddCity(cityWithId city.CityWithId) {
-	//add new city in to storage
-	(*c)[cityWithId.Id] = city.City{
-		Name:       cityWithId.Name,
-		Region:     cityWithId.Region,
-		District:   cityWithId.District,
-		Population: cityWithId.Population,
-		Foundation: cityWithId.Foundation,
-	}
-	return
-}
-
-func (c *Cities) SaveToCsv(filePath string) error {
+func (c *CityStruct) SaveToCsv(filePath string) error {
 	//write store to csv
+	c.mu.Lock()
 	file, err := os.Create(filePath)
 	defer file.Close()
 	if err != nil {
@@ -80,7 +77,7 @@ func (c *Cities) SaveToCsv(filePath string) error {
 	w := csv.NewWriter(file)
 	defer w.Flush()
 	var data [][]string
-	for key, record := range *c {
+	for key, record := range (*c).cities {
 		row := []string{
 			strconv.Itoa(key),
 			record.Name,
@@ -96,77 +93,92 @@ func (c *Cities) SaveToCsv(filePath string) error {
 		log.Fatal("Unable to write CSV file ", err)
 		return err
 	}
+	c.mu.Unlock()
 	return nil
 }
 
-func (c *Cities) IsExistsById(id int) (resp bool) {
+func (c *CityStruct) IsExistsById(id int) (resp bool) {
 	//If city exists == true, otherwise == false
-	_, resp = (*c)[id]
+	c.mu.Lock()
+	_, resp = (*c).cities[id]
+	c.mu.Unlock()
 	return
 }
 
-func (c *Cities) GetById(id int) (resp city.CityWithId) {
+func (c *CityStruct) GetById(id int) (resp city.CityWithId) {
 	//return CityWithId struct
-	resp = etc.CityToCityWithId(id, (*c)[id])
+	c.mu.Lock()
+	resp = etc.CityToCityWithId(id, (*c).cities[id])
+	c.mu.Unlock()
 	return
 }
 
-func (c *Cities) NewById(city *city.CityWithId) {
+func (c *CityStruct) NewById(city *city.CityWithId) {
 	//create new record in database
 	id := city.Id
-	(*c)[id] = etc.CityWithIdToCity(*city)
+	(*c).cities[id] = etc.CityWithIdToCity(*city)
 }
 
-func (c *Cities) DeleteById(id int) {
+func (c *CityStruct) DeleteById(id int) {
 	//delete record from database by id
-	delete(*c, id)
+	c.mu.Lock()
+	delete((*c).cities, id)
+	c.mu.Unlock()
 }
 
-func (c *Cities) UpdatePopulationById(id, population int) {
+func (c *CityStruct) UpdatePopulationById(id, population int) {
 	//Update population by id
-	entry := (*c)[id]
-	fmt.Println(entry)
+	c.mu.Lock()
+	entry := (*c).cities[id]
 	entry.Population = population
-	(*c)[id] = entry
-	fmt.Println((*c)[id])
+	(*c).cities[id] = entry
+	c.mu.Unlock()
 }
 
-func (c *Cities) GetCitiesFromRegion(region string) (resp []string) {
+func (c *CityStruct) GetCitiesFromRegion(region string) (resp []string) {
 	//Return list of cities from region
-	for _, value := range *c {
+	c.mu.Lock()
+	for _, value := range (*c).cities {
 		if value.Region == region {
 			resp = append(resp, value.Name)
 		}
 	}
+	c.mu.Unlock()
 	return
 }
 
-func (c *Cities) GetCitiesFromDistrict(district string) (resp []string) {
+func (c *CityStruct) GetCitiesFromDistrict(district string) (resp []string) {
 	//Return list of cities from district
-	for _, value := range *c {
+	c.mu.Lock()
+	for _, value := range (*c).cities {
 		if value.District == district {
 			resp = append(resp, value.Name)
 		}
 	}
+	c.mu.Unlock()
 	return
 }
 
-func (c *Cities) GetCitiesByPopulation(min, max int) (resp []string) {
+func (c *CityStruct) GetCitiesByPopulation(min, max int) (resp []string) {
 	//Return list of cities with population in the range
-	for _, value := range *c {
+	c.mu.Lock()
+	for _, value := range (*c).cities {
 		if value.Population >= min && value.Population <= max {
 			resp = append(resp, value.Name)
 		}
 	}
+	c.mu.Unlock()
 	return
 }
 
-func (c *Cities) GetCitiesByFoundation(min, max int) (resp []string) {
+func (c *CityStruct) GetCitiesByFoundation(min, max int) (resp []string) {
 	//Return list of cities with foundation in the range
-	for _, value := range *c {
+	c.mu.Lock()
+	for _, value := range (*c).cities {
 		if value.Foundation >= min && value.Foundation <= max {
 			resp = append(resp, value.Name)
 		}
 	}
+	c.mu.Unlock()
 	return
 }

@@ -24,5 +24,11 @@
 - curl -v -d '{"min":1000, "max":1000000}' -X POST http://localhost:8080/citiesbypopulation
 - curl -v -d '{"min":1000, "max":1000000}' -X POST http://localhost:8080/citiesbyfoundation
 
+### Configure:
+Use \
+LISTENER_ADDRESS \
+LISTENER_PORT \
+variables if you want to override default listener "127.0.0.1:8080"
+
 ### TBD:
 - reduce code reducing repeatable code
