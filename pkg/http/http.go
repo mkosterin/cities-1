@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func Router(host string, st *store.Cities) {
+func Router(host string, st *store.CityStruct) {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
