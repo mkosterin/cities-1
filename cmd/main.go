@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cities-1/pkg/etc"
 	"cities-1/pkg/http"
 	"cities-1/pkg/store"
 	"log"
@@ -9,7 +10,9 @@ import (
 	"syscall"
 )
 
-const filename = "cities.csv"
+const (
+	filename = "cities.csv"
+)
 
 func main() {
 	st := store.NewStore()
@@ -34,6 +37,5 @@ func main() {
 		}
 	}()
 
-	http.Router("127.0.0.1:8080", st)
-
+	http.Router(etc.HostPortResolver(), st)
 }
